@@ -3,72 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello, World</title>
+    <title>Simple Calendar Example</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/fullcalendar.min.css" rel="stylesheet">
     <style>
         body {
             display: flex;
             justify-content: center;
             align-items: center;
+            flex-direction: column;
             height: 100vh;
             background-color: #f0f0f0;
             font-family: Arial, sans-serif;
         }
 
-        .login-container {
+        .calendar-container {
             background-color: #ffffff;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             padding: 20px;
-            width: 300px;
-        }
-
-        .login-container h2 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        .login-container input[type="text"],
-        .login-container input[type="password"] {
-            width: 100%;
-            padding: 10px;
-            margin: 8px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-
-        .login-container button {
-            width: 100%;
-            padding: 10px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        .login-container button:hover {
-            background-color: #45a049;
-        }
-
-        .error {
-            color: red;
-            text-align: center;
-            margin-top: 10px;
+            width: 90%;
+            max-width: 800px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <h2>Login</h2>
-        <form action="/login" method="post">
-            <input type="text" name="username" placeholder="Username" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Login</button>
-        </form>
-        <p class="error" id="errorMsg"></p>
+    <div class="calendar-container">
+        <div id="calendar"></div>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/fullcalendar.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: [
+                    {
+                        title: 'Meeting',
+                        start: '2024-10-16T10:30:00',
+                        end: '2024-10-16T12:30:00',
+                        description: 'A team meeting to discuss project updates.'
+                    },
+                    {
+                        title: 'Lunch',
+                        start: '2024-10-17T12:00:00'
+                    },
+                    {
+                        title: 'Conference',
+                        start: '2024-10-18',
+                        end: '2024-10-20'
+                    },
+                    {
+                        title: 'Birthday Party',
+                        start: '2024-10-19T07:00:00'
+                    }
+                ],
+                editable: true,
+                droppable: true, // Allow dragging
+                eventClick: function(info) {
+                    alert('Event: ' + info.event.title);
+                }
+            });
+
+            calendar.render();
+        });
+    </script>
 </body>
 </html>
