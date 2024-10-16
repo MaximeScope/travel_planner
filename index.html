@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Calendar Example</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/fullcalendar.min.css" rel="stylesheet">
+    <title>Friends Availability Calendar</title>
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
     <style>
         body {
             display: flex;
@@ -16,7 +17,7 @@
             font-family: Arial, sans-serif;
         }
 
-        .calendar-container {
+        .calendar-container, .login-container {
             background-color: #ffffff;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -25,54 +26,112 @@
             max-width: 800px;
             margin-top: 20px;
         }
+
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #calendar {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
+    <div class="login-container">
+        <input type="text" id="friendName" placeholder="Enter your name">
+        <button class="btn" onclick="login()">Login</button>
+    </div>
     <div class="calendar-container">
         <div id="calendar"></div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/fullcalendar.min.js"></script>
+    <!-- FullCalendar JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var calendarEl = document.getElementById('calendar');
+        let friendsAvailability = {}; // Store friends' availability
+        let currentFriend = null;
 
-            var calendar = new FullCalendar.Calendar(calendarEl, {
+        function login() {
+            const friendName = document.getElementById('friendName').value.trim();
+            if (friendName) {
+                currentFriend = friendName;
+                if (!friendsAvailability[currentFriend]) {
+                    friendsAvailability[currentFriend] = {};
+                }
+                alert(`Logged in as ${friendName}`);
+            } else {
+                alert("Please enter a name");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay'
                 },
-                events: [
-                    {
-                        title: 'Meeting',
-                        start: '2024-10-16T10:30:00',
-                        end: '2024-10-16T12:30:00',
-                        description: 'A team meeting to discuss project updates.'
-                    },
-                    {
-                        title: 'Lunch',
-                        start: '2024-10-17T12:00:00'
-                    },
-                    {
-                        title: 'Conference',
-                        start: '2024-10-18',
-                        end: '2024-10-20'
-                    },
-                    {
-                        title: 'Birthday Party',
-                        start: '2024-10-19T07:00:00'
+                editable: false,
+                dateClick: function(info) {
+                    if (!currentFriend) {
+                        alert("Please log in first!");
+                        return;
                     }
-                ],
-                editable: true,
-                droppable: true, // Allow dragging
-                eventClick: function(info) {
-                    alert('Event: ' + info.event.title);
+
+                    let friendEvents = friendsAvailability[currentFriend];
+                    if (!friendEvents[info.dateStr]) {
+                        friendEvents[info.dateStr] = "green"; // default to green
+                    } else if (friendEvents[info.dateStr] === "green") {
+                        friendEvents[info.dateStr] = "yellow";
+                    } else if (friendEvents[info.dateStr] === "yellow") {
+                        friendEvents[info.dateStr] = "red";
+                    } else {
+                        delete friendEvents[info.dateStr];
+                    }
+
+                    renderFriendAvailability(calendar);
                 }
             });
 
             calendar.render();
+
+            // Function to render all friends' availability on the calendar
+            function renderFriendAvailability(calendar) {
+                calendar.getEvents().forEach(event => event.remove());
+
+                for (let friend in friendsAvailability) {
+                    for (let date in friendsAvailability[friend]) {
+                        let color = friendsAvailability[friend][date];
+                        calendar.addEvent({
+                            title: `${friend}: ${color === "green" ? "Free" : color === "yellow" ? "Maybe Free" : "Busy"}`,
+                            start: date,
+                            backgroundColor: color,
+                            borderColor: color
+                        });
+                    }
+                }
+            }
         });
     </script>
 </body>
