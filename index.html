@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friends Availability Calendar</title>
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        .calendar-container, .login-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 90%;
+            max-width: 800px;
+            margin-top: 20px;
+        }
+
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #calendar {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <input type="text" id="username" placeholder="Enter you name">
+        <button class="btn" onclick="login()">Login</button>
+    </div>
+    <div class="calendar-container">
+        <div id="calendar"></div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.4/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.4/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.4/firebase-firestore.js"></script>
+
+    <!-- FullCalendar JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC5Zn4bZGsNRvgFmapZBGWAkQUn6u38rwg",
+            authDomain: "travelplanner-474cd.firebaseapp.com",
+            projectId: "travelplanner-474cd",
+            storageBucket: "travelplanner-474cd.appspot.com",
+            messagingSenderId: "782065209523",
+            appId: "1:782065209523:web:099064230988a8ffc5e0c6"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let friendsAvailability = {};
+        let currentUser = null;
+
+        // Load existing availability from localStorage on page load
+        window.onload = function() {
+            const savedData = localStorage.getItem('friendsAvailability');
+            if (savedData) {
+                friendsAvailability = JSON.parse(savedData);
+            }
+        };
+
+        function login() {
+            const username = document.getElementById('username').value.trim();
+
+            if (!username) {
+                alert("Please enter a valid username and password");
+                return;
+            } else {
+                auth.signInAnonymously()
+                    .then(userCredential => {
+                        currentUser = userCredential.user;
+                        currentUser.displayName = username; // Store the name locally
+                        alert(`Logged in as ${username}`);
+                        loadAvailability();
+                    })
+                    .catch(error => {
+                        console.error("Error logging in:", error);
+                        alert("Login failed!");
+                    });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                editable: false,
+                dateClick: function(info) {
+                    if (!currentUser) {
+                        alert("Please log in first!");
+                        return;
+                    }
+
+                    let username = currentUser.displayName;
+                    if (!friendsAvailability[username]) {
+                        friendsAvailability[username] = {};
+                    }
+
+                    // Toggle through green, orange, red, and no color
+                    let status = friendsAvailability[username];
+                    if (!status[info.dateStr]) {
+                        status[info.dateStr] = "green"; // default to green
+                    } else if (status[info.dateStr] === "green") {
+                        status[info.dateStr] = "orange";
+                    } else if (status[info.dateStr] === "orange") {
+                        status[info.dateStr] = "red";
+                    } else {
+                        delete status[info.dateStr];
+                    }
+
+                    // Save to Firestore and localStorage
+                    const availabilityData = {
+                        username: currentUser.displayName,
+                        date: info.dateStr,
+                        color: status[info.dateStr] || "none"
+                    };
+
+                    saveDataToFirestore(availabilityData);
+                    saveDataToLocalStorage();
+                    loadAvailability();
+                }
+            });
+
+            calendar.render();
+
+            function loadAvailability() {
+                calendar.getEvents().forEach(event => event.remove());
+            
+                // Load from Local Storage first
+                friendsAvailability = JSON.parse(localStorage.getItem('friendsAvailability')) || {};
+
+                // Update calendar based on local data
+                for (let username in friendsAvailability) {
+                    let availability = friendsAvailability[username];
+                    for (let date in availability) {
+                        const color = availability[date];
+                        calendar.addEvent({
+                            title: `${username}: ${color === "green" ? "Free" : color === "orange" ? "Maybe Free" : "Busy"}`,
+                            start: date,
+                            backgroundColor: color,
+                            borderColor: color
+                        });
+                    }
+                }
+            
+                // Load from Firestore for broader visibility
+                db.collection("availability").get().then((querySnapshot) => {
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        if (!friendsAvailability[data.username]) {
+                            friendsAvailability[data.username] = {};
+                        }
+                        friendsAvailability[data.username][data.date] = data.color;
+                    
+                        calendar.addEvent({
+                            title: `${data.username}: ${data.color === "green" ? "Free" : data.color === "orange" ? "Maybe Free" : "Busy"}`,
+                            start: data.date,
+                            backgroundColor: data.color,
+                            borderColor: data.color
+                        });
+                    });
+                });
+            }
+
+            function saveDataToFirestore(data) {
+                // Update or remove document based on status
+                if (data.color === "none") {
+                    db.collection("availability")
+                      .where("username", "==", data.username)
+                      .where("date", "==", data.date)
+                      .get()
+                      .then(querySnapshot => {
+                          querySnapshot.forEach(doc => doc.ref.delete());
+                      });
+                } else {
+                    db.collection("availability").add(data);
+                }
+            }
+
+            function saveDataToLocalStorage() {
+                localStorage.setItem('friendsAvailability', JSON.stringify(friendsAvailability));
+            }
+        });
+    </script>
+</body>
+</html>
